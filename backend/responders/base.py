@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Any
 
 
-class BaseAnalyzer(ABC):
+class BaseResponder(ABC):
     @abstractmethod
-    def analyze(self, events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    def respond(self, actions: List[Dict[str, Any]]) -> None:
         ...

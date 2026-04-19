@@ -1,14 +1,18 @@
+from typing import List, Optional, Dict, Any
+
+from analyzers.base import BaseAnalyzer
 from analyzers.bruteforce import BruteForceAnalyzer
+from analyzers.ml_analyzer import MLAnalyzer
 
 
-def get_analyzers(config=None):
-    analyzers = []
+def get_analyzers(config: Optional[Dict[str, Any]] = None) -> List[BaseAnalyzer]:
+    analyzers: List[BaseAnalyzer] = []
 
-    # базовые правила
+    # базовый анализатор
     analyzers.append(BruteForceAnalyzer(threshold=5))
 
-    # сюда потом подключим ML
+    # ML модуль
     if config and config.get("use_ml"):
-        pass
+        analyzers.append(MLAnalyzer())
 
     return analyzers
