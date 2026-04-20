@@ -1,12 +1,14 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List
+from typing import List, Dict, Any
+
+from models.incident import Incident
 
 
 class BasePlaybook(ABC):
     @abstractmethod
-    def match(self, incident: Dict[str, Any]) -> bool:
+    def match(self, incident: Incident) -> bool:
         ...
 
     @abstractmethod
-    def execute(self, incident: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def execute(self, incident: Incident) -> List[Dict[str, Any]]:
         ...

@@ -1,30 +1,35 @@
 from collections import defaultdict
-from typing import List, Dict, Any
+from typing import List, Dict
 
 from analyzers.base import BaseAnalyzer
+from models.event import Event
+from models.incident import Incident
 
 
 class BruteForceAnalyzer(BaseAnalyzer):
     def __init__(self, threshold: int = 5):
         self.threshold = threshold
 
-    def analyze(self, events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        ip_counter: Dict[str, int] = defaultdict(int)
-        incidents: List[Dict[str, Any]] = []
+    def analyze(self, events: List[Event]) -> List[Incident]:
+        ip_events: Dict[str, List[Event]] = defaultdict(list)
+        incidents: List[Incident] = []
 
+        # группируем события по IP
         for event in events:
-            if event.get("type") == "failed_login":
-                ip = event.get("ip")
-                if isinstance(ip, str):
-                    ip_counter[ip] += 1
+            if event.type == "failed_login" and event.ip:
+                ip_events[event.ip].append(event)
 
-        for ip, count in ip_counter.items():
-            if count >= self.threshold:
-                incidents.append({
-                    "type": "bruteforce",
-                    "ip": ip,
-                    "attempts": count,
-                    "severity": "high"
-                })
+        # создаём инциденты
+        for ip, ev_list in ip_events.items():
+            if len(ev_list) >= self.threshold:
+                inc = Incident(
+                    type="bruteforce",
+                    ip=ip,
+                    severity="high",
+                    events=ev_list
+                )
+
+                inc.meta["attempts"] = len(ev_list)
+                incidents.append(inc)
 
         return incidents

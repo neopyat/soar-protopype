@@ -1,28 +1,32 @@
-from typing import List, Dict, Any
+from typing import List
 
 from analyzers.base import BaseAnalyzer
+from models.event import Event
+from models.incident import Incident
 
 
 class MLAnalyzer(BaseAnalyzer):
-    def analyze(self, events: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        incidents: List[Dict[str, Any]] = []
+    def analyze(self, events: List[Event]) -> List[Incident]:
+        incidents: List[Incident] = []
 
         for event in events:
-            if event.get("type") == "failed_login":
+            if event.type == "failed_login":
                 score = 0
 
-                # простая логика
                 score += 1
 
-                if event.get("ip"):
+                if event.ip:
                     score += 1
 
                 if score >= 2:
-                    incidents.append({
-                        "type": "suspicious_activity",
-                        "ip": event.get("ip"),
-                        "score": score,
-                        "severity": "medium"
-                    })
+                    inc = Incident(
+                        type="suspicious_activity",
+                        ip=event.ip,
+                        severity="medium",
+                        events=[event]
+                    )
+
+                    inc.meta["score"] = score
+                    incidents.append(inc)
 
         return incidents
