@@ -14,7 +14,7 @@ class AuthLogCollector(BaseCollector):
     ) -> None:
 
         if log_path is None:
-            self.log_path: Path = Path("backend/auth.log")
+            self.log_path: Path = Path("/var/log/auth.log")
         else:
             self.log_path = Path(log_path)
 
@@ -190,7 +190,7 @@ class AuthLogCollector(BaseCollector):
 
 
 # class AuthLogCollector(BaseCollector):
-#     def __init__(self, log_path: str = "backend/auth.log"):
+#     def __init__(self, log_path: str = "/var/log/auth.log"):
 #         # ✅ локальный файл по умолчанию
 #         self.log_path = log_path
 #         self._file: Optional[TextIO] = None
