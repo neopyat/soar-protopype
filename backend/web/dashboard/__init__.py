@@ -1,0 +1,1 @@
+from web.dashboard.routes import dashboard_bp

@@ -1,0 +1,1 @@
+from web.settings.routes import settings_bp

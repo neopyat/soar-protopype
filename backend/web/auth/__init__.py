@@ -1,0 +1,1 @@
+from web.auth.routes import auth_bp

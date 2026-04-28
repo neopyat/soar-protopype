@@ -1,0 +1,1 @@
+from web.incidents.routes import incidents_bp
