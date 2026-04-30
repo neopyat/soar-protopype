@@ -1,10 +1,10 @@
 import json
-
 from pathlib import Path
 from typing import List, Optional, Union
 
 from models.incident import Incident
 from storage.compression import write_compressed
+from storage.db_writer import DBWriter
 
 
 class IncidentRepository:
@@ -13,17 +13,20 @@ class IncidentRepository:
         path: Optional[Union[str, Path]] = None
     ) -> None:
 
+        # путь к архиву
         if path is None:
-            self.path: Path = Path(
-                "backend/data/incidents.json.gz"
-            )
+            self.path: Path = Path("backend/data/incidents.json.gz")
         else:
             self.path = Path(path)
 
+        # создаём папку если нет
         self.path.parent.mkdir(
             parents=True,
             exist_ok=True
         )
+
+        # инициализация DB writer
+        self.db_writer = DBWriter()
 
     def save(
         self,
@@ -39,6 +42,14 @@ class IncidentRepository:
             try:
                 data = inc.to_dict()
 
+                # -------------------------
+                # DB STORAGE
+                # -------------------------
+                self.db_writer.save_incident(data)
+
+                # -------------------------
+                # ARCHIVE STORAGE
+                # -------------------------
                 serialized = json.dumps(
                     data,
                     ensure_ascii=False
@@ -49,14 +60,86 @@ class IncidentRepository:
             except Exception as e:
                 print(
                     f"[!] Serialization error "
-                    f"({inc.id}): {e}"
+                    f"({getattr(inc, 'id', 'unknown')}): {e}"
                 )
 
+        # -------------------------
+        # COMMIT (один раз)
+        # -------------------------
+        try:
+            from web.extensions import db
+            db.session.commit()
+        except Exception as e:
+            print(f"[!] DB commit error: {e}")
+
+        # -------------------------
+        # ARCHIVE WRITE
+        # -------------------------
         if lines:
             write_compressed(
                 str(self.path),
                 lines
             )
+
+# import json
+
+# from pathlib import Path
+# from typing import List, Optional, Union
+
+# from models.incident import Incident
+# from storage.compression import write_compressed
+
+
+# class IncidentRepository:
+#     def __init__(
+#         self,
+#         path: Optional[Union[str, Path]] = None
+#     ) -> None:
+
+#         if path is None:
+#             self.path: Path = Path(
+#                 "backend/data/incidents.json.gz"
+#             )
+#         else:
+#             self.path = Path(path)
+
+#         self.path.parent.mkdir(
+#             parents=True,
+#             exist_ok=True
+#         )
+
+#     def save(
+#         self,
+#         incidents: List[Incident]
+#     ) -> None:
+
+#         if not incidents:
+#             return
+
+#         lines: List[str] = []
+
+#         for inc in incidents:
+#             try:
+#                 data = inc.to_dict()
+
+#                 serialized = json.dumps(
+#                     data,
+#                     ensure_ascii=False
+#                 )
+
+#                 lines.append(serialized)
+
+#             except Exception as e:
+#                 print(
+#                     f"[!] Serialization error "
+#                     f"({inc.id}): {e}"
+#                 )
+
+#         if lines:
+#             write_compressed(
+#                 str(self.path),
+#                 lines
+#             )
 
 # import json
 # import os

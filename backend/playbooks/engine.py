@@ -1,24 +1,17 @@
-from typing import List, Dict, Any
-
-from models.incident import Incident
-from playbooks.base import BasePlaybook
+from playbooks.rules import RulesEngine
 
 
 class PlaybookEngine:
-    def __init__(self, playbooks: List[BasePlaybook]):
-        self.playbooks = playbooks
 
-    def process(self, incidents: List[Incident]) -> List[Dict[str, Any]]:
-        actions: List[Dict[str, Any]] = []
+    def __init__(self):
+        self.rules = RulesEngine()
 
-        for inc in incidents:
-            for pb in self.playbooks:
-                try:
-                    if pb.match(inc):
-                        result = pb.execute(inc)
-                        if result:
-                            actions.extend(result)
-                except Exception as e:
-                    print(f"[!] Playbook error ({pb.__class__.__name__}): {e}")
+    def run(self, incidents):
+        if not incidents:
+            return []
+
+        actions = self.rules.process(incidents)
+
+        print(f"[PLAYBOOK] Generated actions: {actions}")
 
         return actions

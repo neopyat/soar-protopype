@@ -15,8 +15,8 @@ class Incident(db.Model):
     status = db.Column(db.String(20), default="open")
 
     mitre = db.Column(db.String(50), nullable=True)
-    threat = db.Column(db.String(50), nullable=True)
 
     raw_log = db.Column(db.Text, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    resolved_at = db.Column(db.DateTime, nullable=True)

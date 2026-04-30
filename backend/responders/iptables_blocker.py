@@ -1,27 +1,24 @@
 import subprocess
-from typing import List, Dict, Any
-
-from responders.base import BaseResponder
 
 
-class IPTablesBlocker(BaseResponder):
-    def respond(self, actions: List[Dict[str, Any]]) -> None:
+class IPTablesBlocker:
+
+    def respond(self, actions):
         for action in actions:
-            if action.get("action") == "block_ip":
-                ip = action.get("ip")
+            if action.get("type") != "block_ip":
+                continue
 
-                if not isinstance(ip, str):
-                    continue
+            ip = action.get("ip")
+            if not ip:
+                continue
 
-                try:
-                    subprocess.run(
-                        ["sudo", "iptables", "-C", "INPUT", "-s", ip, "-j", "DROP"],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL
-                    )
-                except subprocess.CalledProcessError:
-                    subprocess.run(
-                        ["sudo", "iptables", "-A", "INPUT", "-s", ip, "-j", "DROP"],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL
-                    )
+            try:
+                print(f"[RESPONDER] Blocking IP: {ip}")
+
+                subprocess.run(
+                    ["sudo", "iptables", "-A", "INPUT", "-s", ip, "-j", "DROP"],
+                    check=True
+                )
+
+            except Exception as e:
+                print(f"[ERROR] Failed to block IP {ip}: {e}")

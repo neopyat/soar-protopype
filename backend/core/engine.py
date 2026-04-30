@@ -24,9 +24,10 @@ class SOAREngine:
         self.config: Dict[str, Any] = config or {}
         self.debug: bool = bool(self.config.get("debug", False))
 
+        # STORAGE
         self.storage = IncidentRepository()
 
-        # ✅ ВАЖНО: передаём debug в pipeline
+        # PIPELINE
         self.pipeline = Pipeline(
             analyzers=self.analyzers,
             playbook_engine=self.playbook_engine,
@@ -36,7 +37,7 @@ class SOAREngine:
         )
 
     # -------------------------
-    # Registration
+    # REGISTRATION
     # -------------------------
 
     def register_collector(self, collector: BaseCollector) -> None:
@@ -50,12 +51,10 @@ class SOAREngine:
 
     def register_playbooks(self, playbooks: List[BasePlaybook]) -> None:
         self.playbook_engine = PlaybookEngine(playbooks)
-
-        # 🔴 синхронизация с pipeline
         self.pipeline.playbook_engine = self.playbook_engine
 
     # -------------------------
-    # Collect
+    # COLLECT
     # -------------------------
 
     def _collect(self) -> List[Dict[str, Any]]:
@@ -67,12 +66,12 @@ class SOAREngine:
                 if data:
                     events.extend(data)
             except Exception as e:
-                self._log_error(f"Collector error ({collector.__class__.__name__}): {e}")
+                print(f"[!] Collector error ({collector.__class__.__name__}): {e}")
 
         return events
 
     # -------------------------
-    # Run
+    # RUN
     # -------------------------
 
     def run(self) -> None:
@@ -85,10 +84,8 @@ class SOAREngine:
                 print("[DEBUG] No events received")
             return
 
-        # нормализация
         events: List[Event] = normalize(raw_events)
 
-        # 🔴 pipeline возвращает статистику
         stats = self.pipeline.process(events)
 
         if self.debug:
@@ -101,12 +98,115 @@ class SOAREngine:
             print(f"Time:      {duration}s")
             print("===========================\n")
 
-    # -------------------------
-    # Utils
-    # -------------------------
+# import time
+# from typing import List, Dict, Any, Optional
 
-    def _log_error(self, message: str) -> None:
-        print(f"[!] {message}")
+# from collectors.base import BaseCollector
+# from analyzers.base import BaseAnalyzer
+# from responders.base import BaseResponder
+# from playbooks.engine import PlaybookEngine
+# from playbooks.base import BasePlaybook
+
+# from core.pipeline import Pipeline
+# from processors.normalizer import normalize
+# from storage.repository import IncidentRepository
+# from models.event import Event
+
+
+# class SOAREngine:
+#     def __init__(self, config: Optional[Dict[str, Any]] = None):
+#         self.collectors: List[BaseCollector] = []
+#         self.analyzers: List[BaseAnalyzer] = []
+#         self.responders: List[BaseResponder] = []
+
+#         self.playbook_engine: Optional[PlaybookEngine] = None
+
+#         self.config: Dict[str, Any] = config or {}
+#         self.debug: bool = bool(self.config.get("debug", False))
+
+#         self.storage = IncidentRepository()
+
+#         # ✅ ВАЖНО: передаём debug в pipeline
+#         self.pipeline = Pipeline(
+#             analyzers=self.analyzers,
+#             playbook_engine=self.playbook_engine,
+#             responders=self.responders,
+#             storage=self.storage,
+#             debug=self.debug
+#         )
+
+#     # -------------------------
+#     # Registration
+#     # -------------------------
+
+#     def register_collector(self, collector: BaseCollector) -> None:
+#         self.collectors.append(collector)
+
+#     def register_analyzer(self, analyzer: BaseAnalyzer) -> None:
+#         self.analyzers.append(analyzer)
+
+#     def register_responder(self, responder: BaseResponder) -> None:
+#         self.responders.append(responder)
+
+#     def register_playbooks(self, playbooks: List[BasePlaybook]) -> None:
+#         self.playbook_engine = PlaybookEngine(playbooks)
+
+#         # 🔴 синхронизация с pipeline
+#         self.pipeline.playbook_engine = self.playbook_engine
+
+#     # -------------------------
+#     # Collect
+#     # -------------------------
+
+#     def _collect(self) -> List[Dict[str, Any]]:
+#         events: List[Dict[str, Any]] = []
+
+#         for collector in self.collectors:
+#             try:
+#                 data = collector.collect()
+#                 if data:
+#                     events.extend(data)
+#             except Exception as e:
+#                 self._log_error(f"Collector error ({collector.__class__.__name__}): {e}")
+
+#         return events
+
+#     # -------------------------
+#     # Run
+#     # -------------------------
+
+#     def run(self) -> None:
+#         start_time = time.time()
+
+#         raw_events = self._collect()
+
+#         if not raw_events:
+#             if self.debug:
+#                 print("[DEBUG] No events received")
+#             return
+
+#         # нормализация
+#         events: List[Event] = normalize(raw_events)
+
+#         # 🔴 pipeline возвращает статистику
+#         stats = self.pipeline.process(events)
+
+#         if self.debug:
+#             duration = round(time.time() - start_time, 4)
+
+#             print("\n========= SUMMARY =========")
+#             print(f"Events:    {stats['events']}")
+#             print(f"Incidents: {stats['incidents']}")
+#             print(f"Actions:   {stats['actions']}")
+#             print(f"Time:      {duration}s")
+#             print("===========================\n")
+
+#     # -------------------------
+#     # Utils
+#     # -------------------------
+
+#     def _log_error(self, message: str) -> None:
+#         print(f"[!] {message}")
 
 # import time
 # from typing import List, Dict, Any, Optional

@@ -1,13 +1,6 @@
-from typing import List, Dict, Any
+class LoggerResponder:
 
-from responders.base import BaseResponder
-
-
-class LoggerResponder(BaseResponder):
-    def respond(self, actions: List[Dict[str, Any]]) -> None:
+    def respond(self, actions):
         for action in actions:
-            if action.get("action") == "log":
-                message = action.get("message")
-
-                if isinstance(message, str):
-                    print(f"[LOG] {message}")
+            if action.get("type") == "log":
+                print(f"[LOG] {action.get('message')}")
