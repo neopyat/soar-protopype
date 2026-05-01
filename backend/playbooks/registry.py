@@ -1,8 +1,14 @@
-from collectors.auth_log import AuthLogCollector
+from playbooks.engine import PlaybookEngine
 
 
-def get_collectors(config=None):
-    return [AuthLogCollector()]
+def get_playbooks(config=None):
+    return PlaybookEngine()
+
+# from collectors.auth_log import AuthLogCollector
+
+
+# def get_collectors(config=None):
+#     return [AuthLogCollector()]
 
 # from typing import List, Optional, Dict, Any
 
