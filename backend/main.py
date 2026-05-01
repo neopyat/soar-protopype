@@ -3,16 +3,19 @@ import json
 from pathlib import Path
 
 from core.engine import SOAREngine
-from collectors.auth_log import AuthLogCollector
-from analyzers.bruteforce import BruteforceAnalyzer
-from analyzers.anomaly import AnomalyAnalyzer
 
+# registry (ЕДИНЫЙ источник)
+from collectors.registry import get_collectors
+from analyzers.registry import get_analyzers
 from responders.registry import get_responders
 from playbooks.registry import get_playbooks
 
 from web import create_app
 
 
+# -------------------------
+# CONFIG
+# -------------------------
 def load_config() -> dict:
     config_path = Path("config.json")
 
@@ -30,6 +33,9 @@ def load_config() -> dict:
         return {}
 
 
+# -------------------------
+# MAIN
+# -------------------------
 def main():
     config = load_config()
 
@@ -38,19 +44,19 @@ def main():
     # -------------------------
     # COLLECTORS
     # -------------------------
-    engine.register_collector(AuthLogCollector())
+    for collector in get_collectors(config):
+        engine.register_collector(collector)
 
     # -------------------------
     # ANALYZERS
     # -------------------------
-    engine.register_analyzer(BruteforceAnalyzer())
-    engine.register_analyzer(AnomalyAnalyzer())
+    for analyzer in get_analyzers(config):
+        engine.register_analyzer(analyzer)
 
     # -------------------------
     # RESPONDERS
     # -------------------------
-    responders = get_responders(config)
-    for responder in responders:
+    for responder in get_responders(config):
         engine.register_responder(responder)
 
     # -------------------------
@@ -65,15 +71,104 @@ def main():
     # LOOP
     # -------------------------
     while True:
-        engine.run()
-        time.sleep(config.get("loop_interval", 2))
+        try:
+            engine.run()
+            time.sleep(config.get("loop_interval", 2))
+
+        except KeyboardInterrupt:
+            print("\n[*] SOAR stopped")
+            break
+
+        except Exception as e:
+            print(f"[!] Runtime error: {e}")
+            time.sleep(config.get("loop_interval", 2))
 
 
+# -------------------------
+# ENTRY
+# -------------------------
 if __name__ == "__main__":
     app = create_app()
 
     with app.app_context():
         main()
+
+# import time
+# import json
+# from pathlib import Path
+
+# from core.engine import SOAREngine
+# from collectors.auth_log import AuthLogCollector
+# from analyzers.bruteforce import BruteforceAnalyzer
+# from analyzers.anomaly import AnomalyAnalyzer
+
+# from responders.registry import get_responders
+# from playbooks.registry import get_playbooks
+
+# from web import create_app
+
+
+# def load_config() -> dict:
+#     config_path = Path("config.json")
+
+#     if not config_path.exists():
+#         print("[!] config.json not found, using defaults")
+#         return {}
+
+#     try:
+#         with open(config_path, "r", encoding="utf-8") as f:
+#             config = json.load(f)
+#             print("[*] Config loaded from config.json")
+#             return config
+#     except Exception as e:
+#         print(f"[!] Failed to load config: {e}")
+#         return {}
+
+
+# def main():
+#     config = load_config()
+
+#     engine = SOAREngine(config=config)
+
+#     # -------------------------
+#     # COLLECTORS
+#     # -------------------------
+#     engine.register_collector(AuthLogCollector())
+
+#     # -------------------------
+#     # ANALYZERS
+#     # -------------------------
+#     engine.register_analyzer(BruteforceAnalyzer())
+#     engine.register_analyzer(AnomalyAnalyzer())
+
+#     # -------------------------
+#     # RESPONDERS
+#     # -------------------------
+#     responders = get_responders(config)
+#     for responder in responders:
+#         engine.register_responder(responder)
+
+#     # -------------------------
+#     # PLAYBOOKS
+#     # -------------------------
+#     playbooks = get_playbooks(config)
+#     engine.register_playbooks(playbooks)
+
+#     print("[*] SOAR started")
+
+#     # -------------------------
+#     # LOOP
+#     # -------------------------
+#     while True:
+#         engine.run()
+#         time.sleep(config.get("loop_interval", 2))
+
+
+# if __name__ == "__main__":
+#     app = create_app()
+
+#     with app.app_context():
+#         main()
 
 # import time
 # import json
