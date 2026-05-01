@@ -5,79 +5,133 @@ echo "      SOAR Ubuntu Installer"
 echo "=================================="
 echo ""
 
-# -------------------------
-# Python check
-# -------------------------
-
-echo "[1/7] Checking Python3..."
-
-if ! command -v python3 >/dev/null 2>&1
-then
-    echo "[!] Python3 not found."
-    echo "[*] Installing Python3..."
-
+echo "[1/6] Checking Python..."
+if ! command -v python3 >/dev/null 2>&1; then
     sudo apt update
     sudo apt install -y python3 python3-pip python3-venv
 fi
 
-# -------------------------
-# Create venv
-# -------------------------
-
-echo "[2/7] Creating virtual environment..."
-
+echo "[2/6] Creating virtual environment..."
 python3 -m venv venv
 
-# -------------------------
-# Activate
-# -------------------------
-
-echo "[3/7] Activating venv..."
-
+echo "[3/6] Activating..."
 source venv/bin/activate
 
-# -------------------------
-# Upgrade pip
-# -------------------------
+echo "[4/6] Upgrading pip..."
+pip install --upgrade pip
 
-echo "[4/7] Updating pip..."
-
-python -m pip install --upgrade pip
-
-# -------------------------
-# Requirements
-# -------------------------
-
-echo "[5/7] Installing requirements..."
-
-if [ ! -f requirements.txt ]; then
-    touch requirements.txt
+echo "[5/6] Installing dependencies..."
+if [ ! -s requirements.txt ]; then
+    echo "[!] requirements.txt is empty!"
+    exit 1
 fi
 
 pip install -r requirements.txt
 
-# -------------------------
-# Prepare folders
-# -------------------------
+echo "[6/6] Preparing project..."
+mkdir -p data
+touch auth.log
 
-echo "[6/7] Preparing folders..."
+echo "[*] Initializing database..."
 
-mkdir -p backend/data
-touch backend/auth.log
+python - <<EOF
+from web import create_app
+from web.extensions import db
 
-# -------------------------
-# Config wizard
-# -------------------------
+app = create_app()
+with app.app_context():
+    db.create_all()
+EOF
 
-echo "[7/7] Launching setup wizard..."
-
+echo ""
+echo "[*] Running setup wizard..."
 python cli_setup.py
 
 echo ""
 echo "Installation complete."
-echo ""
-echo "Run project:"
-echo "python3 main.py"
+echo "Run:"
+echo "source venv/bin/activate && python3 main.py"
+
+# #!/bin/bash
+
+# echo "=================================="
+# echo "      SOAR Ubuntu Installer"
+# echo "=================================="
+# echo ""
+
+# # -------------------------
+# # Python check
+# # -------------------------
+
+# echo "[1/7] Checking Python3..."
+
+# if ! command -v python3 >/dev/null 2>&1
+# then
+#     echo "[!] Python3 not found."
+#     echo "[*] Installing Python3..."
+
+#     sudo apt update
+#     sudo apt install -y python3 python3-pip python3-venv
+# fi
+
+# # -------------------------
+# # Create venv
+# # -------------------------
+
+# echo "[2/7] Creating virtual environment..."
+
+# python3 -m venv venv
+
+# # -------------------------
+# # Activate
+# # -------------------------
+
+# echo "[3/7] Activating venv..."
+
+# source venv/bin/activate
+
+# # -------------------------
+# # Upgrade pip
+# # -------------------------
+
+# echo "[4/7] Updating pip..."
+
+# python -m pip install --upgrade pip
+
+# # -------------------------
+# # Requirements
+# # -------------------------
+
+# echo "[5/7] Installing requirements..."
+
+# if [ ! -f requirements.txt ]; then
+#     touch requirements.txt
+# fi
+
+# pip install -r requirements.txt
+
+# # -------------------------
+# # Prepare folders
+# # -------------------------
+
+# echo "[6/7] Preparing folders..."
+
+# mkdir -p backend/data
+# touch backend/auth.log
+
+# # -------------------------
+# # Config wizard
+# # -------------------------
+
+# echo "[7/7] Launching setup wizard..."
+
+# python cli_setup.py
+
+# echo ""
+# echo "Installation complete."
+# echo ""
+# echo "Run project:"
+# echo "python3 main.py"
 
 # #!/bin/bash
 

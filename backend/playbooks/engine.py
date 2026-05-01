@@ -6,7 +6,7 @@ class PlaybookEngine:
     def __init__(self):
         self.rules = RulesEngine()
 
-    def run(self, incidents):
+    def process(self, incidents):
         if not incidents:
             return []
 

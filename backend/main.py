@@ -4,7 +4,6 @@ from pathlib import Path
 
 from core.engine import SOAREngine
 
-# registry (ЕДИНЫЙ источник)
 from collectors.registry import get_collectors
 from analyzers.registry import get_analyzers
 from responders.registry import get_responders
@@ -13,85 +12,215 @@ from playbooks.registry import get_playbooks
 from web import create_app
 
 
-# -------------------------
-# CONFIG
-# -------------------------
 def load_config() -> dict:
     config_path = Path("config.json")
 
     if not config_path.exists():
-        print("[!] config.json not found, using defaults")
         return {}
 
     try:
         with open(config_path, "r", encoding="utf-8") as f:
-            config = json.load(f)
-            print("[*] Config loaded from config.json")
-            return config
-    except Exception as e:
-        print(f"[!] Failed to load config: {e}")
+            return json.load(f)
+    except Exception:
         return {}
 
 
-# -------------------------
-# MAIN
-# -------------------------
 def main():
     config = load_config()
 
     engine = SOAREngine(config=config)
 
-    # -------------------------
-    # COLLECTORS
-    # -------------------------
-    for collector in get_collectors(config):
-        engine.register_collector(collector)
+    for c in get_collectors(config):
+        engine.register_collector(c)
 
-    # -------------------------
-    # ANALYZERS
-    # -------------------------
-    for analyzer in get_analyzers(config):
-        engine.register_analyzer(analyzer)
+    for a in get_analyzers(config):
+        engine.register_analyzer(a)
 
-    # -------------------------
-    # RESPONDERS
-    # -------------------------
-    for responder in get_responders(config):
-        engine.register_responder(responder)
+    for r in get_responders(config):
+        engine.register_responder(r)
 
-    # -------------------------
-    # PLAYBOOKS
-    # -------------------------
-    playbooks = get_playbooks(config)
-    engine.register_playbooks(playbooks)
+    engine.register_playbooks(get_playbooks(config))
 
     print("[*] SOAR started")
 
-    # -------------------------
-    # LOOP
-    # -------------------------
     while True:
         try:
             engine.run()
             time.sleep(config.get("loop_interval", 2))
-
         except KeyboardInterrupt:
-            print("\n[*] SOAR stopped")
             break
-
         except Exception as e:
             print(f"[!] Runtime error: {e}")
-            time.sleep(config.get("loop_interval", 2))
 
 
-# -------------------------
-# ENTRY
-# -------------------------
 if __name__ == "__main__":
     app = create_app()
 
     with app.app_context():
         main()
+
+# import time
+# import json
+# from pathlib import Path
+
+# from core.engine import SOAREngine
+
+# from collectors.registry import get_collectors
+# from analyzers.registry import get_analyzers
+# from responders.registry import get_responders
+# from playbooks.registry import get_playbooks
+
+# from web import create_app
+
+
+# def load_config() -> dict:
+#     config_path = Path("config.json")
+
+#     if not config_path.exists():
+#         print("[!] config.json not found, using defaults")
+#         return {}
+
+#     try:
+#         with open(config_path, "r", encoding="utf-8") as f:
+#             return json.load(f)
+#     except Exception as e:
+#         print(f"[!] Failed to load config: {e}")
+#         return {}
+
+
+# def main():
+#     config = load_config()
+
+#     engine = SOAREngine(config=config)
+
+#     # collectors
+#     for c in get_collectors(config):
+#         engine.register_collector(c)
+
+#     # analyzers
+#     for a in get_analyzers(config):
+#         engine.register_analyzer(a)
+
+#     # responders
+#     for r in get_responders(config):
+#         engine.register_responder(r)
+
+#     # playbooks
+#     engine.register_playbooks(get_playbooks(config))
+
+#     print("[*] SOAR started")
+
+#     while True:
+#         try:
+#             engine.run()
+#             time.sleep(config.get("loop_interval", 2))
+#         except KeyboardInterrupt:
+#             print("\n[*] Stopped")
+#             break
+#         except Exception as e:
+#             print(f"[!] Runtime error: {e}")
+
+
+# if __name__ == "__main__":
+#     app = create_app()
+
+#     with app.app_context():
+#         main()
+
+# import time
+# import json
+# from pathlib import Path
+
+# from core.engine import SOAREngine
+
+# # registry (ЕДИНЫЙ источник)
+# from collectors.registry import get_collectors
+# from analyzers.registry import get_analyzers
+# from responders.registry import get_responders
+# from playbooks.registry import get_playbooks
+
+# from web import create_app
+
+
+# # -------------------------
+# # CONFIG
+# # -------------------------
+# def load_config() -> dict:
+#     config_path = Path("config.json")
+
+#     if not config_path.exists():
+#         print("[!] config.json not found, using defaults")
+#         return {}
+
+#     try:
+#         with open(config_path, "r", encoding="utf-8") as f:
+#             config = json.load(f)
+#             print("[*] Config loaded from config.json")
+#             return config
+#     except Exception as e:
+#         print(f"[!] Failed to load config: {e}")
+#         return {}
+
+
+# # -------------------------
+# # MAIN
+# # -------------------------
+# def main():
+#     config = load_config()
+
+#     engine = SOAREngine(config=config)
+
+#     # -------------------------
+#     # COLLECTORS
+#     # -------------------------
+#     for collector in get_collectors(config):
+#         engine.register_collector(collector)
+
+#     # -------------------------
+#     # ANALYZERS
+#     # -------------------------
+#     for analyzer in get_analyzers(config):
+#         engine.register_analyzer(analyzer)
+
+#     # -------------------------
+#     # RESPONDERS
+#     # -------------------------
+#     for responder in get_responders(config):
+#         engine.register_responder(responder)
+
+#     # -------------------------
+#     # PLAYBOOKS
+#     # -------------------------
+#     playbooks = get_playbooks(config)
+#     engine.register_playbooks(playbooks)
+
+#     print("[*] SOAR started")
+
+#     # -------------------------
+#     # LOOP
+#     # -------------------------
+#     while True:
+#         try:
+#             engine.run()
+#             time.sleep(config.get("loop_interval", 2))
+
+#         except KeyboardInterrupt:
+#             print("\n[*] SOAR stopped")
+#             break
+
+#         except Exception as e:
+#             print(f"[!] Runtime error: {e}")
+#             time.sleep(config.get("loop_interval", 2))
+
+
+# # -------------------------
+# # ENTRY
+# # -------------------------
+# if __name__ == "__main__":
+#     app = create_app()
+
+#     with app.app_context():
+#         main()
 
 # import time
 # import json

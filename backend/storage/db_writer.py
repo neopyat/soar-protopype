@@ -5,6 +5,7 @@ from web.models.incident import Incident
 
 
 class DBWriter:
+
     def save_incident(self, incident_data: Dict[str, Any]) -> None:
         incident = Incident(
             type=incident_data.get("type"),

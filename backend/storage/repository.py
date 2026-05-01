@@ -13,19 +13,13 @@ class IncidentRepository:
         path: Optional[Union[str, Path]] = None
     ) -> None:
 
-        # путь к архиву
         if path is None:
-            self.path: Path = Path("backend/data/incidents.json.gz")
+            self.path: Path = Path("data/incidents.json.gz")
         else:
             self.path = Path(path)
 
-        # создаём папку если нет
-        self.path.parent.mkdir(
-            parents=True,
-            exist_ok=True
-        )
+        self.path.parent.mkdir(parents=True, exist_ok=True)
 
-        # инициализация DB writer
         self.db_writer = DBWriter()
 
     def save(
@@ -42,14 +36,10 @@ class IncidentRepository:
             try:
                 data = inc.to_dict()
 
-                # -------------------------
-                # DB STORAGE
-                # -------------------------
+                # DB
                 self.db_writer.save_incident(data)
 
-                # -------------------------
-                # ARCHIVE STORAGE
-                # -------------------------
+                # FILE
                 serialized = json.dumps(
                     data,
                     ensure_ascii=False
@@ -58,28 +48,101 @@ class IncidentRepository:
                 lines.append(serialized)
 
             except Exception as e:
-                print(
-                    f"[!] Serialization error "
-                    f"({getattr(inc, 'id', 'unknown')}): {e}"
-                )
+                print(f"[!] Serialization error: {e}")
 
-        # -------------------------
-        # COMMIT (один раз)
-        # -------------------------
+        # COMMIT
         try:
             from web.extensions import db
             db.session.commit()
         except Exception as e:
             print(f"[!] DB commit error: {e}")
 
-        # -------------------------
-        # ARCHIVE WRITE
-        # -------------------------
+        # FILE WRITE
         if lines:
-            write_compressed(
-                str(self.path),
-                lines
-            )
+            write_compressed(str(self.path), lines)
+
+# import json
+# from pathlib import Path
+# from typing import List, Optional, Union
+
+# from models.incident import Incident
+# from storage.compression import write_compressed
+# from storage.db_writer import DBWriter
+
+
+# class IncidentRepository:
+#     def __init__(
+#         self,
+#         path: Optional[Union[str, Path]] = None
+#     ) -> None:
+
+#         # путь к архиву
+#         if path is None:
+#             self.path: Path = Path("backend/data/incidents.json.gz")
+#         else:
+#             self.path = Path(path)
+
+#         # создаём папку если нет
+#         self.path.parent.mkdir(
+#             parents=True,
+#             exist_ok=True
+#         )
+
+#         # инициализация DB writer
+#         self.db_writer = DBWriter()
+
+#     def save(
+#         self,
+#         incidents: List[Incident]
+#     ) -> None:
+
+#         if not incidents:
+#             return
+
+#         lines: List[str] = []
+
+#         for inc in incidents:
+#             try:
+#                 data = inc.to_dict()
+
+#                 # -------------------------
+#                 # DB STORAGE
+#                 # -------------------------
+#                 self.db_writer.save_incident(data)
+
+#                 # -------------------------
+#                 # ARCHIVE STORAGE
+#                 # -------------------------
+#                 serialized = json.dumps(
+#                     data,
+#                     ensure_ascii=False
+#                 )
+
+#                 lines.append(serialized)
+
+#             except Exception as e:
+#                 print(
+#                     f"[!] Serialization error "
+#                     f"({getattr(inc, 'id', 'unknown')}): {e}"
+#                 )
+
+#         # -------------------------
+#         # COMMIT (один раз)
+#         # -------------------------
+#         try:
+#             from web.extensions import db
+#             db.session.commit()
+#         except Exception as e:
+#             print(f"[!] DB commit error: {e}")
+
+#         # -------------------------
+#         # ARCHIVE WRITE
+#         # -------------------------
+#         if lines:
+#             write_compressed(
+#                 str(self.path),
+#                 lines
+#             )
 
 # import json
 
