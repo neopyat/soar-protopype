@@ -1,16 +1,13 @@
-from typing import List, Dict, Any, Set
+from typing import List, Dict, Any
 import subprocess
 
 from responders.base import BaseResponder
 
 
 class IPTablesBlocker(BaseResponder):
-    def __init__(self) -> None:
-        self.blocked_ips: Set[str] = set()
-
     def _add_rule(self, ip: str) -> None:
         subprocess.run(
-            ["iptables", "-A", "INPUT", "-s", ip, "-j", "DROP"],
+            ["iptables", "-I", "INPUT", "-s", ip, "-j", "DROP"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             check=False
@@ -26,20 +23,61 @@ class IPTablesBlocker(BaseResponder):
             if not isinstance(ip_value, str):
                 continue
 
-            ip: str = ip_value
+            ip: str = ip_value.strip()
+
+            if not ip:
+                continue
 
             try:
-                if ip in self.blocked_ips:
-                    print(f"[SKIP] IP already blocked: {ip}")
-                    continue
-
                 self._add_rule(ip)
-                self.blocked_ips.add(ip)
-
                 print(f"[ACTION] IPTABLES block {ip}")
 
             except Exception as exc:
                 print(f"[!] IPTables responder error: {exc}")
+
+
+# from typing import List, Dict, Any, Set
+# import subprocess
+
+# from responders.base import BaseResponder
+
+
+# class IPTablesBlocker(BaseResponder):
+#     def __init__(self) -> None:
+#         self.blocked_ips: Set[str] = set()
+
+#     def _add_rule(self, ip: str) -> None:
+#         subprocess.run(
+#             ["iptables", "-A", "INPUT", "-s", ip, "-j", "DROP"],
+#             stdout=subprocess.DEVNULL,
+#             stderr=subprocess.DEVNULL,
+#             check=False
+#         )
+
+#     def respond(self, actions: List[Dict[str, Any]]) -> None:
+#         for action in actions:
+#             if action.get("action") != "block_ip":
+#                 continue
+
+#             ip_value: Any = action.get("ip")
+
+#             if not isinstance(ip_value, str):
+#                 continue
+
+#             ip: str = ip_value
+
+#             try:
+#                 if ip in self.blocked_ips:
+#                     print(f"[SKIP] IP already blocked: {ip}")
+#                     continue
+
+#                 self._add_rule(ip)
+#                 self.blocked_ips.add(ip)
+
+#                 print(f"[ACTION] IPTABLES block {ip}")
+
+#             except Exception as exc:
+#                 print(f"[!] IPTables responder error: {exc}")
 
 # from typing import List, Dict, Any
 # import subprocess
