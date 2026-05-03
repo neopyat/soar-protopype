@@ -7,7 +7,7 @@ from models.incident import Incident
 
 
 class EngineAnalyzer(BaseAnalyzer):
-    def __init__(self):
+    def __init__(self) -> None:
         self.engine = DetectionEngine()
 
     def analyze(self, event: Event) -> Optional[Incident]:
