@@ -1,4 +1,4 @@
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Set
 
 from responders.base import BaseResponder
 from responders.firewall_adapter import FirewallAdapter
@@ -7,6 +7,7 @@ from responders.firewall_adapter import FirewallAdapter
 class IPTablesBlocker(BaseResponder):
     def __init__(self) -> None:
         self.firewall = FirewallAdapter()
+        self.blocked: Set[str] = set()
 
     def respond(self, actions: List[Dict[str, Any]]) -> None:
         for action in actions:
@@ -23,10 +24,44 @@ class IPTablesBlocker(BaseResponder):
             if not ip:
                 continue
 
+            if ip in self.blocked:
+                continue
+
             try:
                 self.firewall.block_ip(ip)
+                self.blocked.add(ip)
             except Exception as exc:
                 print(f"[!] Firewall responder error: {exc}")
+
+# from typing import List, Dict, Any
+
+# from responders.base import BaseResponder
+# from responders.firewall_adapter import FirewallAdapter
+
+
+# class IPTablesBlocker(BaseResponder):
+#     def __init__(self) -> None:
+#         self.firewall = FirewallAdapter()
+
+#     def respond(self, actions: List[Dict[str, Any]]) -> None:
+#         for action in actions:
+#             if action.get("action") != "block_ip":
+#                 continue
+
+#             ip_value: Any = action.get("ip")
+
+#             if not isinstance(ip_value, str):
+#                 continue
+
+#             ip = ip_value.strip()
+
+#             if not ip:
+#                 continue
+
+#             try:
+#                 self.firewall.block_ip(ip)
+#             except Exception as exc:
+#                 print(f"[!] Firewall responder error: {exc}")
 
 # from typing import List, Dict, Any
 # import subprocess

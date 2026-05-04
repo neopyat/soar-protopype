@@ -4,9 +4,14 @@ from typing import List, Dict, Any, Optional
 from collectors.base import BaseCollector
 from analyzers.base import BaseAnalyzer
 from responders.base import BaseResponder
+
+from playbooks.engine import PlaybookEngine
 from playbooks.base import BasePlaybook
 
 from core.pipeline import Pipeline
+from storage.repository import IncidentRepository
+from processors.normalizer import normalize
+from models.event import Event
 
 
 class SOAREngine:
@@ -19,12 +24,16 @@ class SOAREngine:
         self.config: Dict[str, Any] = config or {}
         self.debug: bool = bool(self.config.get("debug", False))
 
-        # ✅ ПРАВИЛЬНЫЙ pipeline (под текущую архитектуру)
+        self.storage = IncidentRepository()
+        self.playbook_engine: Optional[PlaybookEngine] = None
+
+        # pipeline создаётся без playbook_engine (пока нет playbooks)
         self.pipeline = Pipeline(
-            collectors=self.collectors,
             analyzers=self.analyzers,
-            playbooks=self.playbooks,
+            playbook_engine=None,
             responders=self.responders,
+            storage=self.storage,
+            debug=self.debug,
         )
 
     # -------------------------
@@ -43,27 +52,72 @@ class SOAREngine:
     def register_playbooks(self, playbooks: List[BasePlaybook]) -> None:
         self.playbooks.extend(playbooks)
 
+        # создаём engine
+        self.playbook_engine = PlaybookEngine(self.playbooks)
+
+        # 🔥 синхронизация с pipeline
+        self.pipeline.playbook_engine = self.playbook_engine
+
     # -------------------------
-    # Run
+    # Collect
+    # -------------------------
+
+    def _collect(self) -> List[Dict[str, Any]]:
+        events: List[Dict[str, Any]] = []
+
+        for collector in self.collectors:
+            try:
+                data = collector.collect()
+                if data:
+                    events.extend(data)
+            except Exception as e:
+                self._log_error(f"Collector error ({collector.__class__.__name__}): {e}")
+
+        return events
+
+    # -------------------------
+    # Run loop
     # -------------------------
 
     def run(self) -> None:
         print("[*] SOAR Engine started")
 
+        interval = int(self.config.get("loop_interval", 2))
+
         while True:
             start_time = time.time()
 
             try:
-                self.pipeline.run()
-            except KeyboardInterrupt:
-                print("\n[!] Stopped by user")
-                break
-            except Exception as e:
-                self._log_error(f"Pipeline error: {e}")
+                raw_events = self._collect()
 
-            if self.debug:
-                duration = round(time.time() - start_time, 4)
-                print(f"[DEBUG] Cycle time: {duration}s")
+                if not raw_events:
+                    if self.debug:
+                        print("[DEBUG] No events")
+                    time.sleep(interval)
+                    continue
+
+                # нормализация
+                events: List[Event] = normalize(raw_events)
+
+                stats = self.pipeline.process(events)
+
+                if self.debug:
+                    duration = round(time.time() - start_time, 4)
+                    print(
+                        f"[DEBUG] events={stats['events']} "
+                        f"incidents={stats['incidents']} "
+                        f"actions={stats['actions']} "
+                        f"time={duration}s"
+                    )
+
+            except KeyboardInterrupt:
+                print("\n[!] Stopped")
+                break
+
+            except Exception as e:
+                self._log_error(f"Runtime error: {e}")
+
+            time.sleep(interval)
 
     # -------------------------
     # Utils
@@ -71,6 +125,80 @@ class SOAREngine:
 
     def _log_error(self, message: str) -> None:
         print(f"[!] {message}")
+
+# import time
+# from typing import List, Dict, Any, Optional
+
+# from collectors.base import BaseCollector
+# from analyzers.base import BaseAnalyzer
+# from responders.base import BaseResponder
+# from playbooks.base import BasePlaybook
+
+# from core.pipeline import Pipeline
+
+
+# class SOAREngine:
+#     def __init__(self, config: Optional[Dict[str, Any]] = None):
+#         self.collectors: List[BaseCollector] = []
+#         self.analyzers: List[BaseAnalyzer] = []
+#         self.responders: List[BaseResponder] = []
+#         self.playbooks: List[BasePlaybook] = []
+
+#         self.config: Dict[str, Any] = config or {}
+#         self.debug: bool = bool(self.config.get("debug", False))
+
+#         # ✅ ПРАВИЛЬНЫЙ pipeline (под текущую архитектуру)
+#         self.pipeline = Pipeline(
+#             collectors=self.collectors,
+#             analyzers=self.analyzers,
+#             playbooks=self.playbooks,
+#             responders=self.responders,
+#         )
+
+#     # -------------------------
+#     # Registration
+#     # -------------------------
+
+#     def register_collector(self, collector: BaseCollector) -> None:
+#         self.collectors.append(collector)
+
+#     def register_analyzer(self, analyzer: BaseAnalyzer) -> None:
+#         self.analyzers.append(analyzer)
+
+#     def register_responder(self, responder: BaseResponder) -> None:
+#         self.responders.append(responder)
+
+#     def register_playbooks(self, playbooks: List[BasePlaybook]) -> None:
+#         self.playbooks.extend(playbooks)
+
+#     # -------------------------
+#     # Run
+#     # -------------------------
+
+#     def run(self) -> None:
+#         print("[*] SOAR Engine started")
+
+#         while True:
+#             start_time = time.time()
+
+#             try:
+#                 self.pipeline.run()
+#             except KeyboardInterrupt:
+#                 print("\n[!] Stopped by user")
+#                 break
+#             except Exception as e:
+#                 self._log_error(f"Pipeline error: {e}")
+
+#             if self.debug:
+#                 duration = round(time.time() - start_time, 4)
+#                 print(f"[DEBUG] Cycle time: {duration}s")
+
+#     # -------------------------
+#     # Utils
+#     # -------------------------
+
+#     def _log_error(self, message: str) -> None:
+#         print(f"[!] {message}")
 
 
 # import time

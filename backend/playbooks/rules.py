@@ -9,7 +9,6 @@ class BruteForcePlaybook(BasePlaybook):
         return (
             incident.type == "bruteforce"
             and incident.severity == "high"
-            and incident.mitre == "T1110"
         )
 
     def execute(self, incident: Incident) -> List[Dict[str, Any]]:

@@ -1,144 +1,257 @@
-from typing import List, Iterable, Optional, Union, Dict, Any, cast
+from typing import List, Dict, Any, Optional, Union
 
-from core.threat_intel import ThreatIntel
-from core.mitre import MitreAttack
-from processors.normalizer import normalize
+from analyzers.base import BaseAnalyzer
+from responders.base import BaseResponder
+from playbooks.engine import PlaybookEngine
+from storage.repository import IncidentRepository
+
+from models.event import Event
+from models.incident import Incident
+
+from processors.enricher import enrich
 
 
 class Pipeline:
     def __init__(
         self,
-        collectors: List[Any],
-        analyzers: List[Any],
-        playbooks: List[Any],
-        responders: List[Any],
+        analyzers: List[BaseAnalyzer],
+        playbook_engine: Optional[PlaybookEngine],
+        responders: List[BaseResponder],
+        storage: IncidentRepository,
+        debug: bool = False,
     ) -> None:
-        self.collectors = collectors
         self.analyzers = analyzers
-        self.playbooks = playbooks
+        self.playbook_engine = playbook_engine
         self.responders = responders
+        self.storage = storage
+        self.debug = debug
 
-        self.threat_intel = ThreatIntel()
-        self.mitre = MitreAttack()
+    def process(self, events: List[Event]) -> Dict[str, int]:
+        incidents: List[Incident] = []
 
-        self._init_intelligence()
-
-    def _init_intelligence(self) -> None:
-        print("[*] Loading Threat Intelligence...")
-        self.threat_intel.load_feeds()
-
-        print("[*] Loading MITRE ATT&CK...")
-        self.mitre.load()
-
-    def run(self) -> None:
-        raw_events: List[Any] = []
-
-        for collector in self.collectors:
-            try:
-                collected: Optional[Iterable[Any]] = collector.collect()
-                if collected:
-                    raw_events.extend(list(collected))
-            except Exception as e:
-                print(f"[Collector Error] {e}")
-
-        if not raw_events:
-            print("[DEBUG] No events received")
-            return
-
-        try:
-            events: List[Any] = list(normalize(raw_events))
-        except Exception as e:
-            print(f"[Normalizer Error] {e}")
-            return
-
-        incidents: List[Any] = []
-
+        # -------------------------
+        # ANALYZE
+        # -------------------------
         for analyzer in self.analyzers:
             for event in events:
                 try:
-                    analysis_result: Optional[Union[Any, List[Any]]] = analyzer.analyze(event)
+                    result: Optional[Union[Incident, List[Incident]]] = analyzer.analyze(event)
                 except Exception as e:
-                    print(f"[Analyzer Error] {e}")
+                    print(f"[Analyzer Error] {analyzer.__class__.__name__}: {e}")
                     continue
 
-                if not analysis_result:
+                if result is None:
                     continue
 
-                if isinstance(analysis_result, list):
-                    inc_list = cast(List[Any], analysis_result)
-                    for inc in inc_list:
-                        self._enrich_incident(inc)
-                        incidents.append(inc)
+                # нормализация результата
+                if isinstance(result, list):
+                    result_list: List[Incident] = result
                 else:
-                    self._enrich_incident(analysis_result)
-                    incidents.append(analysis_result)
+                    result_list = [result]
 
+                for inc in result_list:
+                    try:
+                        enriched_inc: Incident = enrich(inc)
+                    except Exception:
+                        enriched_inc = inc
+
+                    incidents.append(enriched_inc)
+
+        # -------------------------
+        # STORAGE
+        # -------------------------
+        if incidents:
+            try:
+                self.storage.save(incidents)
+            except Exception as e:
+                print(f"[Storage Error] {e}")
+
+        # -------------------------
+        # PLAYBOOK ENGINE
+        # -------------------------
         actions: List[Dict[str, Any]] = []
 
-        for playbook in self.playbooks:
-            for incident in incidents:
-                try:
-                    playbook_result: Optional[List[Dict[str, Any]]] = playbook.run(incident)
-                except Exception as e:
-                    print(f"[Playbook Error] {e}")
-                    continue
+        if self.playbook_engine:
+            try:
+                actions = self.playbook_engine.process(incidents)
+            except Exception as e:
+                print(f"[Playbook Engine Error] {e}")
 
-                if playbook_result:
-                    actions.extend(playbook_result)
-
+        # -------------------------
+        # RESPONDERS
+        # -------------------------
         for responder in self.responders:
             try:
                 responder.respond(actions)
             except Exception as e:
-                print(f"[Responder Error] {e}")
+                print(f"[Responder Error] {responder.__class__.__name__}: {e}")
 
-        self._debug(events, incidents, actions)
+        # -------------------------
+        # DEBUG
+        # -------------------------
+        if self.debug:
+            print("\n========== SOAR DEBUG ==========")
+            print(f"[+] Events: {len(events)}")
+            print(f"[+] Incidents: {len(incidents)}")
+            print(f"[+] Actions: {len(actions)}")
 
-    def _enrich_incident(self, inc: Any) -> None:
-        try:
-            ip = getattr(inc, "ip", None)
+            for inc in incidents:
+                print(
+                    f"• {inc.type} | IP={inc.ip} | "
+                    f"severity={inc.severity} | "
+                    f"mitre={inc.mitre} ({getattr(inc, 'mitre_name', '')}) | "
+                    f"threat={inc.threat}"
+                )
 
-            if isinstance(ip, str):
-                if self.threat_intel.is_malicious(ip):
-                    setattr(inc, "threat", "known_bad_ip")
-                    setattr(inc, "severity", "high")
+            print("================================\n")
 
-            mitre_id = getattr(inc, "mitre", None)
-            if isinstance(mitre_id, str):
-                setattr(inc, "mitre_name", self.mitre.get(mitre_id))
+        return {
+            "events": len(events),
+            "incidents": len(incidents),
+            "actions": len(actions),
+        }
 
-        except Exception as e:
-            print(f"[Enrichment Error] {e}")
+# from typing import List, Iterable, Optional, Union, Dict, Any, cast
 
-    def _debug(
-        self,
-        events: List[Any],
-        incidents: List[Any],
-        actions: List[Dict[str, Any]],
-    ) -> None:
-        print("\n========== SOAR DEBUG ==========")
-        print(f"[+] Events received: {len(events)}")
-        print(f"[+] Incidents detected: {len(incidents)}")
+# from core.threat_intel import ThreatIntel
+# from core.mitre import MitreAttack
+# from processors.normalizer import normalize
 
-        print("\n--- Incidents ---")
-        for inc in incidents:
-            print(
-                f"• {getattr(inc, 'type', None)} | "
-                f"IP={getattr(inc, 'ip', None)} | "
-                f"severity={getattr(inc, 'severity', None)} | "
-                f"mitre={getattr(inc, 'mitre', None)} "
-                f"({getattr(inc, 'mitre_name', '')}) | "
-                f"threat={getattr(inc, 'threat', None)}"
-            )
 
-        print("\n--- Actions ---")
-        if not actions:
-            print("• No actions executed")
-        else:
-            for action in actions:
-                print(f"• {action}")
+# class Pipeline:
+#     def __init__(
+#         self,
+#         collectors: List[Any],
+#         analyzers: List[Any],
+#         playbooks: List[Any],
+#         responders: List[Any],
+#     ) -> None:
+#         self.collectors = collectors
+#         self.analyzers = analyzers
+#         self.playbooks = playbooks
+#         self.responders = responders
 
-        print("================================\n")
+#         self.threat_intel = ThreatIntel()
+#         self.mitre = MitreAttack()
+
+#         self._init_intelligence()
+
+#     def _init_intelligence(self) -> None:
+#         print("[*] Loading Threat Intelligence...")
+#         self.threat_intel.load_feeds()
+
+#         print("[*] Loading MITRE ATT&CK...")
+#         self.mitre.load()
+
+#     def run(self) -> None:
+#         raw_events: List[Any] = []
+
+#         for collector in self.collectors:
+#             try:
+#                 collected: Optional[Iterable[Any]] = collector.collect()
+#                 if collected:
+#                     raw_events.extend(list(collected))
+#             except Exception as e:
+#                 print(f"[Collector Error] {e}")
+
+#         if not raw_events:
+#             print("[DEBUG] No events received")
+#             return
+
+#         try:
+#             events: List[Any] = list(normalize(raw_events))
+#         except Exception as e:
+#             print(f"[Normalizer Error] {e}")
+#             return
+
+#         incidents: List[Any] = []
+
+#         for analyzer in self.analyzers:
+#             for event in events:
+#                 try:
+#                     analysis_result: Optional[Union[Any, List[Any]]] = analyzer.analyze(event)
+#                 except Exception as e:
+#                     print(f"[Analyzer Error] {e}")
+#                     continue
+
+#                 if not analysis_result:
+#                     continue
+
+#                 if isinstance(analysis_result, list):
+#                     inc_list = cast(List[Any], analysis_result)
+#                     for inc in inc_list:
+#                         self._enrich_incident(inc)
+#                         incidents.append(inc)
+#                 else:
+#                     self._enrich_incident(analysis_result)
+#                     incidents.append(analysis_result)
+
+#         actions: List[Dict[str, Any]] = []
+
+#         for playbook in self.playbooks:
+#             for incident in incidents:
+#                 try:
+#                     playbook_result: Optional[List[Dict[str, Any]]] = playbook.run(incident)
+#                 except Exception as e:
+#                     print(f"[Playbook Error] {e}")
+#                     continue
+
+#                 if playbook_result:
+#                     actions.extend(playbook_result)
+
+#         for responder in self.responders:
+#             try:
+#                 responder.respond(actions)
+#             except Exception as e:
+#                 print(f"[Responder Error] {e}")
+
+#         self._debug(events, incidents, actions)
+
+#     def _enrich_incident(self, inc: Any) -> None:
+#         try:
+#             ip = getattr(inc, "ip", None)
+
+#             if isinstance(ip, str):
+#                 if self.threat_intel.is_malicious(ip):
+#                     setattr(inc, "threat", "known_bad_ip")
+#                     setattr(inc, "severity", "high")
+
+#             mitre_id = getattr(inc, "mitre", None)
+#             if isinstance(mitre_id, str):
+#                 setattr(inc, "mitre_name", self.mitre.get(mitre_id))
+
+#         except Exception as e:
+#             print(f"[Enrichment Error] {e}")
+
+#     def _debug(
+#         self,
+#         events: List[Any],
+#         incidents: List[Any],
+#         actions: List[Dict[str, Any]],
+#     ) -> None:
+#         print("\n========== SOAR DEBUG ==========")
+#         print(f"[+] Events received: {len(events)}")
+#         print(f"[+] Incidents detected: {len(incidents)}")
+
+#         print("\n--- Incidents ---")
+#         for inc in incidents:
+#             print(
+#                 f"• {getattr(inc, 'type', None)} | "
+#                 f"IP={getattr(inc, 'ip', None)} | "
+#                 f"severity={getattr(inc, 'severity', None)} | "
+#                 f"mitre={getattr(inc, 'mitre', None)} "
+#                 f"({getattr(inc, 'mitre_name', '')}) | "
+#                 f"threat={getattr(inc, 'threat', None)}"
+#             )
+
+#         print("\n--- Actions ---")
+#         if not actions:
+#             print("• No actions executed")
+#         else:
+#             for action in actions:
+#                 print(f"• {action}")
+
+#         print("================================\n")
 
 
 # from typing import List, Any

@@ -14,10 +14,11 @@ class PlaybookEngine:
         for inc in incidents:
             for pb in self.playbooks:
                 try:
-                    if pb.match(inc):
-                        result = pb.execute(inc)
-                        if result:
-                            actions.extend(result)
+                    result = pb.run(inc)  # 🔥 ВАЖНО
+
+                    if result:
+                        actions.extend(result)
+
                 except Exception as e:
                     print(f"[!] Playbook error ({pb.__class__.__name__}): {e}")
 
