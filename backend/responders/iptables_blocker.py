@@ -1,70 +1,104 @@
-from typing import List, Dict
-import time
+from typing import List, Dict, Any
 
 from responders.base import BaseResponder
 from responders.firewall_adapter import FirewallAdapter
 
 
-class IPTablesBlocker(BaseResponder):
-    def __init__(self, ttl: int = 120) -> None:
-        self.firewall = FirewallAdapter()
-        self.ttl = ttl
+class IptablesBlocker(BaseResponder):
+    def __init__(self) -> None:
+        self.firewall: FirewallAdapter = FirewallAdapter()
 
-        # ip -> timestamp
-        self.blocked: Dict[str, float] = {}
+    def respond(self, actions: List[Dict[str, Any]]) -> None:
+        if not actions:
+            return
 
-    def respond(self, actions: List[Dict[str, object]]) -> None:
-        current_time: float = time.time()
+        print(f"[DEBUG] Incoming actions: {actions}")
 
-        # -------------------------
-        # UNBLOCK EXPIRED
-        # -------------------------
-        to_unblock: List[str] = []
-
-        for ip, ts in self.blocked.items():
-            if current_time - ts > self.ttl:
-                to_unblock.append(ip)
-
-        for ip in to_unblock:
-            try:
-                self.firewall.unblock_ip(ip)
-                del self.blocked[ip]
-                print(f"[ACTION] Unblocked IP: {ip}")
-            except Exception as e:
-                print(f"[!] Unblock error ({ip}): {e}")
-
-        # -------------------------
-        # PROCESS ACTIONS
-        # -------------------------
         for action in actions:
-            action_type = action.get("action")
-
-            if action_type != "block_ip":
-                continue
-
-            raw_ip = action.get("ip")
-
-            # 🔴 строгая типизация
-            if not isinstance(raw_ip, str):
-                continue
-
-            ip: str = raw_ip.strip()
-
-            if not ip:
-                continue
-
-            # уже заблокирован
-            if ip in self.blocked:
-                continue
-
             try:
-                self.firewall.block_ip(ip)
-                self.blocked[ip] = current_time
+                action_type: str = action.get("action", "")
 
-                print(f"[ACTION] Blocked IP: {ip}")
+                if action_type != "block_ip":
+                    continue
+
+                ip: str = action.get("ip", "")
+
+                if not ip:
+                    continue
+
+                self.firewall.block_ip(ip)
 
             except Exception as e:
-                print(f"[!] Firewall error ({ip}): {e}")
+                print(f"[Responder Error] {e}")
+
+
+# from typing import List, Dict
+# import time
+
+# from responders.base import BaseResponder
+# from responders.firewall_adapter import FirewallAdapter
+
+
+# class IPTablesBlocker(BaseResponder):
+#     def __init__(self, ttl: int = 120) -> None:
+#         self.firewall = FirewallAdapter()
+#         self.ttl = ttl
+
+#         # ip -> timestamp
+#         self.blocked: Dict[str, float] = {}
+
+#     def respond(self, actions: List[Dict[str, object]]) -> None:
+#         current_time: float = time.time()
+
+#         # -------------------------
+#         # UNBLOCK EXPIRED
+#         # -------------------------
+#         to_unblock: List[str] = []
+
+#         for ip, ts in self.blocked.items():
+#             if current_time - ts > self.ttl:
+#                 to_unblock.append(ip)
+
+#         for ip in to_unblock:
+#             try:
+#                 self.firewall.unblock_ip(ip)
+#                 del self.blocked[ip]
+#                 print(f"[ACTION] Unblocked IP: {ip}")
+#             except Exception as e:
+#                 print(f"[!] Unblock error ({ip}): {e}")
+
+#         # -------------------------
+#         # PROCESS ACTIONS
+#         # -------------------------
+#         for action in actions:
+#             action_type = action.get("action")
+
+#             if action_type != "block_ip":
+#                 continue
+
+#             raw_ip = action.get("ip")
+
+#             # 🔴 строгая типизация
+#             if not isinstance(raw_ip, str):
+#                 continue
+
+#             ip: str = raw_ip.strip()
+
+#             if not ip:
+#                 continue
+
+#             # уже заблокирован
+#             if ip in self.blocked:
+#                 continue
+
+#             try:
+#                 self.firewall.block_ip(ip)
+#                 self.blocked[ip] = current_time
+
+#                 print(f"[ACTION] Blocked IP: {ip}")
+
+#             except Exception as e:
+#                 print(f"[!] Firewall error ({ip}): {e}")
 
 # from typing import List, Dict, Any, Set
 

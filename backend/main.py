@@ -1,19 +1,21 @@
 import json
-import time
 from typing import Dict, Any
 
 from core.engine import SOAREngine
+from core.pipeline import Pipeline
 
 from collectors.registry import get_collectors
 from analyzers.registry import get_analyzers
 from responders.registry import get_responders
 from playbooks.registry import get_playbooks
 
+from playbooks.engine import PlaybookEngine
+from storage.repository import IncidentRepository
+
 
 # -------------------------
-# Config loader
+# CONFIG
 # -------------------------
-
 def load_config() -> Dict[str, Any]:
     try:
         with open("config.json", "r") as f:
@@ -29,64 +31,152 @@ def load_config() -> Dict[str, Any]:
             "debug": True,
             "use_ml": False,
             "enable_blocking": False,
-            "siem": "none"
         }
 
 
 # -------------------------
-# Main
+# MAIN
 # -------------------------
-
 def main() -> None:
     config = load_config()
 
-    engine = SOAREngine(config)
-
     # -------------------------
-    # Collectors
+    # COMPONENTS
     # -------------------------
-    for collector in get_collectors(config):
-        engine.register_collector(collector)
-
-    # -------------------------
-    # Analyzers
-    # -------------------------
-    for analyzer in get_analyzers(config):
-        engine.register_analyzer(analyzer)
-
-    # -------------------------
-    # Playbooks
-    # -------------------------
+    collectors = get_collectors(config)
+    analyzers = get_analyzers(config)
+    responders = get_responders(config)
     playbooks = get_playbooks(config)
-    engine.register_playbooks(playbooks)
 
     # -------------------------
-    # Responders
+    # PLAYBOOK ENGINE
     # -------------------------
-    for responder in get_responders(config):
-        engine.register_responder(responder)
-
-    print("[*] SOAR started (production mode)")
+    playbook_engine = PlaybookEngine(playbooks)
 
     # -------------------------
-    # Loop
+    # STORAGE
     # -------------------------
-    while True:
-        try:
-            engine.run()
-            time.sleep(config.get("loop_interval", 2))
+    repository = IncidentRepository()
 
-        except KeyboardInterrupt:
-            print("\n[*] SOAR stopped by user")
-            break
+    # -------------------------
+    # PIPELINE
+    # -------------------------
+    pipeline = Pipeline(
+        analyzers=analyzers,
+        playbook_engine=playbook_engine,
+        responders=responders,
+        storage=repository,
+        debug=config.get("debug", False),
+    )
 
-        except Exception as e:
-            print(f"[!] Runtime error: {e}")
-            time.sleep(config.get("loop_interval", 2))
+    # -------------------------
+    # ENGINE
+    # -------------------------
+    engine = SOAREngine(
+        collectors=collectors,
+        pipeline=pipeline,
+        interval=config.get("loop_interval", 2),
+        debug=config.get("debug", False),
+    )
+
+    print("[*] SOAR started (pipeline mode)")
+
+    engine.start()
 
 
 if __name__ == "__main__":
     main()
+
+
+# import json
+# import time
+# from typing import Dict, Any
+
+# from core.engine import SOAREngine
+
+# from collectors.registry import get_collectors
+# from analyzers.registry import get_analyzers
+# from responders.registry import get_responders
+# from playbooks.registry import get_playbooks
+
+
+# # -------------------------
+# # Config loader
+# # -------------------------
+
+# def load_config() -> Dict[str, Any]:
+#     try:
+#         with open("config.json", "r") as f:
+#             config: Dict[str, Any] = json.load(f)
+#             print("[*] Config loaded from config.json")
+#             return config
+
+#     except FileNotFoundError:
+#         print("[!] config.json not found, using default config")
+
+#         return {
+#             "loop_interval": 2,
+#             "debug": True,
+#             "use_ml": False,
+#             "enable_blocking": False,
+#             "siem": "none"
+#         }
+
+
+# # -------------------------
+# # Main
+# # -------------------------
+
+# def main() -> None:
+#     config = load_config()
+
+#     engine = SOAREngine(config)
+
+#     # -------------------------
+#     # Collectors
+#     # -------------------------
+#     for collector in get_collectors(config):
+#         engine.register_collector(collector)
+
+#     # -------------------------
+#     # Analyzers
+#     # -------------------------
+#     for analyzer in get_analyzers(config):
+#         engine.register_analyzer(analyzer)
+
+#     # -------------------------
+#     # Playbooks
+#     # -------------------------
+#     playbooks = get_playbooks(config)
+#     engine.register_playbooks(playbooks)
+
+#     # -------------------------
+#     # Responders
+#     # -------------------------
+#     for responder in get_responders(config):
+#         engine.register_responder(responder)
+
+#     print("[*] SOAR started (production mode)")
+
+#     # -------------------------
+#     # Loop
+#     # -------------------------
+#     while True:
+#         try:
+#             engine.run()
+#             time.sleep(config.get("loop_interval", 2))
+
+#         except KeyboardInterrupt:
+#             print("\n[*] SOAR stopped by user")
+#             break
+
+#         except Exception as e:
+#             print(f"[!] Runtime error: {e}")
+#             time.sleep(config.get("loop_interval", 2))
+
+
+# if __name__ == "__main__":
+#     main()
 
 # import time
 # from typing import Dict, Any

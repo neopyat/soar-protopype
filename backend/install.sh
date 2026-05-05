@@ -6,78 +6,165 @@ echo "=================================="
 echo ""
 
 # -------------------------
-# Python check
+# Python
 # -------------------------
-
-echo "[1/7] Checking Python3..."
+echo "[1/8] Checking Python3..."
 
 if ! command -v python3 >/dev/null 2>&1
 then
-    echo "[!] Python3 not found."
-    echo "[*] Installing Python3..."
-
     sudo apt update
     sudo apt install -y python3 python3-pip python3-venv
 fi
 
 # -------------------------
-# Create venv
+# System deps
 # -------------------------
+echo "[2/8] Installing system dependencies..."
 
-echo "[2/7] Creating virtual environment..."
+sudo apt install -y sqlite3
 
+# -------------------------
+# venv
+# -------------------------
+echo "[3/8] Creating virtual environment..."
 python3 -m venv venv
 
 # -------------------------
-# Activate
+# activate
 # -------------------------
-
-echo "[3/7] Activating venv..."
-
+echo "[4/8] Activating venv..."
 source venv/bin/activate
 
 # -------------------------
-# Upgrade pip
+# pip
 # -------------------------
-
-echo "[4/7] Updating pip..."
-
-python -m pip install --upgrade pip
+echo "[5/8] Updating pip..."
+pip install --upgrade pip
 
 # -------------------------
-# Requirements
+# requirements
 # -------------------------
+echo "[6/8] Installing requirements..."
 
-echo "[5/7] Installing requirements..."
-
-if [ ! -f requirements.txt ]; then
-    touch requirements.txt
-fi
+cat <<EOF > requirements.txt
+psutil
+EOF
 
 pip install -r requirements.txt
 
 # -------------------------
-# Prepare folders
+# folders
 # -------------------------
-
-echo "[6/7] Preparing folders..."
+echo "[7/8] Preparing folders..."
 
 mkdir -p backend/data
+mkdir -p backend/database
 touch backend/auth.log
 
 # -------------------------
-# Config wizard
+# init DB
 # -------------------------
+echo "[8/8] Initializing database..."
 
-echo "[7/7] Launching setup wizard..."
+python - <<EOF
+from storage.db import Database
+Database()
+print("[*] Database initialized")
+EOF
 
+# -------------------------
+# CLI config
+# -------------------------
+echo ""
+echo "[*] Launching config wizard..."
 python cli_setup.py
 
 echo ""
-echo "Installation complete."
+echo "[✓] Installation complete"
 echo ""
-echo "Run project:"
-echo "python3 main.py"
+echo "Run:"
+echo "source venv/bin/activate && python3 main.py"
+
+# #!/bin/bash
+
+# echo "=================================="
+# echo "      SOAR Ubuntu Installer"
+# echo "=================================="
+# echo ""
+
+# # -------------------------
+# # Python check
+# # -------------------------
+
+# echo "[1/7] Checking Python3..."
+
+# if ! command -v python3 >/dev/null 2>&1
+# then
+#     echo "[!] Python3 not found."
+#     echo "[*] Installing Python3..."
+
+#     sudo apt update
+#     sudo apt install -y python3 python3-pip python3-venv
+# fi
+
+# # -------------------------
+# # Create venv
+# # -------------------------
+
+# echo "[2/7] Creating virtual environment..."
+
+# python3 -m venv venv
+
+# # -------------------------
+# # Activate
+# # -------------------------
+
+# echo "[3/7] Activating venv..."
+
+# source venv/bin/activate
+
+# # -------------------------
+# # Upgrade pip
+# # -------------------------
+
+# echo "[4/7] Updating pip..."
+
+# python -m pip install --upgrade pip
+
+# # -------------------------
+# # Requirements
+# # -------------------------
+
+# echo "[5/7] Installing requirements..."
+
+# if [ ! -f requirements.txt ]; then
+#     touch requirements.txt
+# fi
+
+# pip install -r requirements.txt
+
+# # -------------------------
+# # Prepare folders
+# # -------------------------
+
+# echo "[6/7] Preparing folders..."
+
+# mkdir -p backend/data
+# touch backend/auth.log
+
+# # -------------------------
+# # Config wizard
+# # -------------------------
+
+# echo "[7/7] Launching setup wizard..."
+
+# python cli_setup.py
+
+# echo ""
+# echo "Installation complete."
+# echo ""
+# echo "Run project:"
+# echo "python3 main.py"
 
 # #!/bin/bash
 
