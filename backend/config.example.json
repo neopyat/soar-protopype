@@ -1,0 +1,18 @@
+{
+    "loop_interval": 2,
+    "debug": false,
+    "use_ml": false,
+    "enable_blocking": true,
+
+    "ssh_host": "192.168.0.109",
+    "ssh_user": "srvr",
+    "ssh_log_path": "/var/log/auth.log",
+
+    "enable_network_monitoring": true,
+    "enable_system_metrics": true,
+
+    "ddos_threshold": 30,
+    "cpu_threshold": 80,
+
+    "siem": "none"
+}

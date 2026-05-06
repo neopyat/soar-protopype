@@ -86,15 +86,11 @@ mkdir -p database
 touch logs/soar.log
 
 # -------------------------
-# CONFIGURATION
+# CONFIGURATION WIZARD
 # -------------------------
-echo "[8/10] Preparing configuration..."
+echo "[8/10] Launching configuration wizard..."
 
-if [ ! -f "config.json" ]; then
-    python3 cli_setup.py
-else
-    echo "[*] config.json already exists"
-fi
+python3 cli_setup.py
 
 # -------------------------
 # FIREWALL SETUP

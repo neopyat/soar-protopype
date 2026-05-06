@@ -1,0 +1,35 @@
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+venv/
+
+# Runtime logs
+logs/*.log
+
+# Database
+database/*.db
+
+# Runtime data
+data/*.gz
+
+# ML baseline
+ml_baseline.json
+
+# Local configuration
+config.json
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Tool cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
