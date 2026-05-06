@@ -1,0 +1,6 @@
+psutil
+flask
+sqlalchemy
+numpy
+scikit-learn
+joblib

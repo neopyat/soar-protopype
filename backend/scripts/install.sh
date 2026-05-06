@@ -63,16 +63,13 @@ echo "[5/10] Updating pip..."
 pip install --upgrade pip
 
 # -------------------------
-# REQUIREMENTS
+# REQUIREMENTS VALIDATION
 # -------------------------
 echo "[6/10] Installing Python packages..."
 
 if [ ! -f "requirements.txt" ]; then
-    cat <<EOF > requirements.txt
-psutil
-flask
-sqlalchemy
-EOF
+    echo "[!] requirements.txt not found"
+    exit 1
 fi
 
 pip install -r requirements.txt
@@ -89,7 +86,7 @@ mkdir -p database
 touch logs/soar.log
 
 # -------------------------
-# CREATE CONFIG
+# CONFIGURATION
 # -------------------------
 echo "[8/10] Preparing configuration..."
 
@@ -115,97 +112,15 @@ bash scripts/setup_service.sh
 
 echo ""
 echo "[✓] Installation completed successfully"
+
 echo ""
 echo "Start service:"
 echo "sudo systemctl start soar"
+
 echo ""
 echo "Check status:"
 echo "sudo systemctl status soar"
 
-
-# #!/bin/bash
-
-# echo "=================================="
-# echo "      SOAR Ubuntu Installer"
-# echo "=================================="
-# echo ""
-
-# # -------------------------
-# # Python
-# # -------------------------
-# echo "[1/8] Checking Python3..."
-
-# if ! command -v python3 >/dev/null 2>&1
-# then
-#     sudo apt update
-#     sudo apt install -y python3 python3-pip python3-venv
-# fi
-
-# # -------------------------
-# # System deps
-# # -------------------------
-# echo "[2/8] Installing system dependencies..."
-
-# sudo apt install -y sqlite3
-
-# # -------------------------
-# # venv
-# # -------------------------
-# echo "[3/8] Creating virtual environment..."
-# python3 -m venv venv
-
-# # -------------------------
-# # activate
-# # -------------------------
-# echo "[4/8] Activating venv..."
-# source venv/bin/activate
-
-# # -------------------------
-# # pip
-# # -------------------------
-# echo "[5/8] Updating pip..."
-# pip install --upgrade pip
-
-# # -------------------------
-# # requirements
-# # -------------------------
-# echo "[6/8] Installing requirements..."
-
-# cat <<EOF > requirements.txt
-# psutil
-# EOF
-
-# pip install -r requirements.txt
-
-# # -------------------------
-# # folders
-# # -------------------------
-# echo "[7/8] Preparing folders..."
-
-# mkdir -p backend/data
-# mkdir -p backend/database
-# touch backend/auth.log
-
-# # -------------------------
-# # init DB
-# # -------------------------
-# echo "[8/8] Initializing database..."
-
-# python - <<EOF
-# from storage.db import Database
-# Database()
-# print("[*] Database initialized")
-# EOF
-
-# # -------------------------
-# # CLI config
-# # -------------------------
-# echo ""
-# echo "[*] Launching config wizard..."
-# python cli_setup.py
-
-# echo ""
-# echo "[✓] Installation complete"
-# echo ""
-# echo "Run:"
-# echo "source venv/bin/activate && python3 main.py"
+echo ""
+echo "View logs:"
+echo "journalctl -u soar -f"
