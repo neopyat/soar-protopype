@@ -1,69 +1,90 @@
 import time
 import re
+import subprocess
 
-from pathlib import Path
-from typing import List, Optional, TextIO, Union, Dict, Any
+from typing import List, Dict, Any, Optional, Set
 
 from collectors.base import BaseCollector
 
 
 class AuthLogCollector(BaseCollector):
+
     def __init__(
         self,
-        log_path: Optional[Union[str, Path]] = None
+        host: str = "192.168.0.109",
+        user: str = "srvr",
+        log_path: str = "/var/log/auth.log"
     ) -> None:
 
-        if log_path is None:
-            self.log_path: Path = Path("/var/log/auth.log")
-        else:
-            self.log_path = Path(log_path)
+        self.host: str = host
+        self.user: str = user
+        self.log_path: str = log_path
 
-        self._file: Optional[TextIO] = None
+        self.last_lines: Set[str] = set()
 
-    def _open_file(self) -> None:
-        if self._file is None:
-            try:
-                self.log_path.parent.mkdir(parents=True, exist_ok=True)
-                self.log_path.touch(exist_ok=True)
-
-                self._file = open(
-                    self.log_path,
-                    "r",
-                    encoding="utf-8"
-                )
-
-                # читаем с конца файла
-                self._file.seek(0, 2)
-
-            except Exception as e:
-                print(f"[!] File open error: {e}")
-                self._file = None
-
+    # -------------------------
+    # MAIN COLLECTION
+    # -------------------------
     def collect(self) -> List[Dict[str, Any]]:
+
         events: List[Dict[str, Any]] = []
 
-        self._open_file()
-
-        if self._file is None:
-            return events
-
         try:
-            lines = self._file.readlines()
+            result = subprocess.run(
+                [
+                    "ssh",
+                    f"{self.user}@{self.host}",
+                    f"tail -n 20 {self.log_path}"
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+
+            if result.returncode != 0:
+                print(f"[SSH Error] {result.stderr}")
+                return events
+
+            lines: List[str] = result.stdout.splitlines()
+
         except Exception as e:
-            print(f"[!] Read error: {e}")
+            print(f"[SSH Collector Error] {e}")
             return events
 
+        # -------------------------
+        # PARSE LOGS
+        # -------------------------
         for line in lines:
+
+            if line in self.last_lines:
+                continue
+
+            self.last_lines.add(line)
+
             event = self._parse_line(line)
 
             if event is not None:
                 events.append(event)
 
+        # -------------------------
+        # LIMIT MEMORY
+        # -------------------------
+        if len(self.last_lines) > 1000:
+            self.last_lines = set(list(self.last_lines)[-500:])
+
         return events
 
-    def _parse_line(self, line: str) -> Optional[Dict[str, Any]]:
+    # -------------------------
+    # PARSE SINGLE LINE
+    # -------------------------
+    def _parse_line(
+        self,
+        line: str
+    ) -> Optional[Dict[str, Any]]:
 
+        # failed login
         if "Failed password" in line:
+
             ip = self._extract_ip(line)
 
             if ip:
@@ -74,7 +95,9 @@ class AuthLogCollector(BaseCollector):
                     "timestamp": time.time()
                 }
 
+        # successful login
         if "Accepted password" in line:
+
             ip = self._extract_ip(line)
 
             if ip:
@@ -87,13 +110,121 @@ class AuthLogCollector(BaseCollector):
 
         return None
 
-    def _extract_ip(self, line: str) -> Optional[str]:
-        match = re.search(r"\d+\.\d+\.\d+\.\d+", line)
+    # -------------------------
+    # EXTRACT IP
+    # -------------------------
+    def _extract_ip(
+        self,
+        line: str
+    ) -> Optional[str]:
+
+        match = re.search(
+            r"\d+\.\d+\.\d+\.\d+",
+            line
+        )
 
         if match:
             return match.group(0)
 
         return None
+
+
+# import time
+# import re
+
+# from pathlib import Path
+# from typing import List, Optional, TextIO, Union, Dict, Any
+
+# from collectors.base import BaseCollector
+
+
+# class AuthLogCollector(BaseCollector):
+#     def __init__(
+#         self,
+#         log_path: Optional[Union[str, Path]] = None
+#     ) -> None:
+
+#         if log_path is None:
+#             self.log_path: Path = Path("/var/log/auth.log")
+#         else:
+#             self.log_path = Path(log_path)
+
+#         self._file: Optional[TextIO] = None
+
+#     def _open_file(self) -> None:
+#         if self._file is None:
+#             try:
+#                 self.log_path.parent.mkdir(parents=True, exist_ok=True)
+#                 self.log_path.touch(exist_ok=True)
+
+#                 self._file = open(
+#                     self.log_path,
+#                     "r",
+#                     encoding="utf-8"
+#                 )
+
+#                 # читаем с конца файла
+#                 self._file.seek(0, 2)
+
+#             except Exception as e:
+#                 print(f"[!] File open error: {e}")
+#                 self._file = None
+
+#     def collect(self) -> List[Dict[str, Any]]:
+#         events: List[Dict[str, Any]] = []
+
+#         self._open_file()
+
+#         if self._file is None:
+#             return events
+
+#         try:
+#             lines = self._file.readlines()
+#         except Exception as e:
+#             print(f"[!] Read error: {e}")
+#             return events
+
+#         for line in lines:
+#             event = self._parse_line(line)
+
+#             if event is not None:
+#                 events.append(event)
+
+#         return events
+
+#     def _parse_line(self, line: str) -> Optional[Dict[str, Any]]:
+
+#         if "Failed password" in line:
+#             ip = self._extract_ip(line)
+
+#             if ip:
+#                 return {
+#                     "type": "failed_login",
+#                     "ip": ip,
+#                     "raw": line.strip(),
+#                     "timestamp": time.time()
+#                 }
+
+#         if "Accepted password" in line:
+#             ip = self._extract_ip(line)
+
+#             if ip:
+#                 return {
+#                     "type": "successful_login",
+#                     "ip": ip,
+#                     "raw": line.strip(),
+#                     "timestamp": time.time()
+#                 }
+
+#         return None
+
+#     def _extract_ip(self, line: str) -> Optional[str]:
+#         match = re.search(r"\d+\.\d+\.\d+\.\d+", line)
+
+#         if match:
+#             return match.group(0)
+
+#         return None
 
 
 # import time

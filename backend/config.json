@@ -2,6 +2,15 @@
     "loop_interval": 2,
     "debug": true,
     "use_ml": true,
-    "enable_blocking": true,
+    "enable_blocking": false,
     "siem": "none"
 }
+
+
+// {
+//     "loop_interval": 2,
+//     "debug": true,
+//     "use_ml": true,
+//     "enable_blocking": true,
+//     "siem": "none"
+// }
